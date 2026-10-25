@@ -221,3 +221,6 @@ __marimo__/
 
 # Downloaded market data
 /data/raw/*.csv
+
+# Generated analysis data
+/data/processed/*.csv
