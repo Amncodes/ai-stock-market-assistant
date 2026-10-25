@@ -224,3 +224,5 @@ __marimo__/
 
 # Generated analysis data
 /data/processed/*.csv
+
+/data/processed/*.png
