@@ -59,6 +59,19 @@ class StockChartTests(unittest.TestCase):
                     Path(folder) / "stock_chart.png",
                 )
 
+    def test_rejects_invalid_adjusted_close_when_available(self):
+        data = self.sample_data()
+        data["Adj Close"] = [100.0] * len(data)
+        data.loc[0, "Adj Close"] = 0
+
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, "Adj Close"):
+                create_stock_analysis_chart(
+                    data,
+                    "TEST.NS",
+                    Path(folder) / "stock_chart.png",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

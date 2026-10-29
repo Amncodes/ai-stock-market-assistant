@@ -19,7 +19,7 @@ class AnalysisPipelineTests(unittest.TestCase):
                 "Close": range(100, 140),
                 "Volume": [1000] * 40,
             }
-        ).iloc[::-1]  # Deliberately write newest dates first.
+        ).iloc[::-1]
 
         input_path = Path(folder) / "sample.csv"
         data.to_csv(input_path, index=False)
@@ -54,13 +54,39 @@ class AnalysisPipelineTests(unittest.TestCase):
     def test_rejects_csv_missing_required_columns(self):
         with tempfile.TemporaryDirectory() as folder:
             input_path = Path(folder) / "incomplete.csv"
-            pd.DataFrame({"Date": ["2025-01-01"], "Close": [100]}).to_csv(
-                input_path,
-                index=False,
-            )
+            pd.DataFrame(
+                {"Date": ["2025-01-01"], "Close": [100]}
+            ).to_csv(input_path, index=False)
 
             with self.assertRaisesRegex(ValueError, "missing"):
                 analyze_stock_file(input_path, Path(folder) / "processed")
+
+    def test_uses_adjusted_close_for_indicators_and_risk(self):
+        dates = pd.date_range("2025-01-01", periods=40, freq="D")
+        data = pd.DataFrame(
+            {
+                "Date": dates,
+                "Open": [100.0] * 40,
+                "High": [101.0] * 40,
+                "Low": [99.0] * 40,
+                "Close": [100.0] * 40,
+                "Adj Close": range(100, 140),
+                "Volume": [1000] * 40,
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as folder:
+            input_path = Path(folder) / "adjusted_sample.csv"
+            data.to_csv(input_path, index=False)
+
+            output_path, metrics = analyze_stock_file(
+                input_path,
+                Path(folder) / "processed",
+            )
+            analyzed = pd.read_csv(output_path)
+
+        self.assertGreater(metrics["annualized_volatility"], 0)
+        self.assertGreater(analyzed["RSI_14"].iloc[-1], 99)
 
 
 if __name__ == "__main__":

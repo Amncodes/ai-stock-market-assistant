@@ -36,7 +36,12 @@ def analyze_watchlist_files(
             raw_data = pd.read_csv(input_path, parse_dates=["Date"])
             raw_data = raw_data.sort_values("Date").reset_index(drop=True)
 
-            forecasts, forecast_metrics = evaluate_baselines(raw_data["Close"])
+            price_column = (
+                "Adj Close" if "Adj Close" in raw_data.columns else "Close"
+            )
+            forecasts, forecast_metrics = evaluate_baselines(
+                raw_data[price_column]
+            )
 
             row = {
                 "Ticker": ticker,
@@ -50,17 +55,16 @@ def analyze_watchlist_files(
             }
 
             for baseline_name, forecast_column in forecast_columns.items():
-                prefix = baseline_name
                 actual = forecasts["Actual_Close"]
                 predicted = forecasts[forecast_column]
 
-                row[f"{prefix}_MAE_INR"] = forecast_metrics.loc[
+                row[f"{baseline_name}_MAE_INR"] = forecast_metrics.loc[
                     baseline_name, "MAE"
                 ]
-                row[f"{prefix}_RMSE_INR"] = forecast_metrics.loc[
+                row[f"{baseline_name}_RMSE_INR"] = forecast_metrics.loc[
                     baseline_name, "RMSE"
                 ]
-                row[f"{prefix}_MAPE_percent"] = (
+                row[f"{baseline_name}_MAPE_percent"] = (
                     (actual - predicted).abs() / actual
                 ).mean() * 100
 

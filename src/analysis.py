@@ -38,11 +38,15 @@ def analyze_stock_file(
         raise ValueError("Date column contains duplicate dates.")
 
     data = data.sort_values("Date").reset_index(drop=True)
-    close = pd.to_numeric(data["Close"], errors="coerce")
-    if close.isna().any():
-        raise ValueError("Close prices must be numeric and contain no missing values.")
 
-    analyzed = add_technical_indicators(data)
+    price_column = "Adj Close" if "Adj Close" in data.columns else "Close"
+    close = pd.to_numeric(data[price_column], errors="coerce")
+    if close.isna().any():
+        raise ValueError(
+            f"{price_column} prices must be numeric and contain no missing values."
+        )
+
+    analyzed = add_technical_indicators(data, price_column=price_column)
     metrics = {
         "annualized_volatility": calculate_annualized_volatility(close),
         "maximum_drawdown": calculate_max_drawdown(close),

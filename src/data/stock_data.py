@@ -9,6 +9,7 @@ import yfinance as yf
 
 
 REQUIRED_COLUMNS = {"Open", "High", "Low", "Close", "Volume"}
+OPTIONAL_COLUMNS = {"Adj Close"}
 
 
 def download_stock_data(
@@ -32,23 +33,40 @@ def download_stock_data(
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
 
-    missing = REQUIRED_COLUMNS.difference(data.columns)
     if data.empty:
         raise ValueError(f"No historical data returned for {ticker}.")
-    if missing:
-        raise ValueError(f"Downloaded data is missing columns: {sorted(missing)}")
 
-    data = data.loc[:, sorted(REQUIRED_COLUMNS)].copy()
+    missing = REQUIRED_COLUMNS.difference(data.columns)
+    if missing:
+        raise ValueError(
+            f"Downloaded data is missing columns: {sorted(missing)}"
+        )
+
+    selected_columns = sorted(
+        REQUIRED_COLUMNS | (OPTIONAL_COLUMNS & set(data.columns))
+    )
+    data = data.loc[:, selected_columns].copy()
     data = data.apply(pd.to_numeric, errors="coerce")
-    data = data.dropna(subset=["Open", "High", "Low", "Close", "Volume"])
+
+    # Keep rows only when required OHLCV values are valid. If adjusted close
+    # is provided, require it to be valid too.
+    valid_columns = sorted(REQUIRED_COLUMNS)
+    if "Adj Close" in data.columns:
+        valid_columns.append("Adj Close")
+
+    data = data.dropna(subset=valid_columns)
 
     if data.empty:
         raise ValueError(f"No valid OHLCV rows remain for {ticker}.")
 
-    # Reject impossible prices and negative trading volume.
     price_columns = ["Open", "High", "Low", "Close"]
+    if "Adj Close" in data.columns:
+        price_columns.append("Adj Close")
+
     if (data[price_columns] <= 0).any().any() or (data["Volume"] < 0).any():
-        raise ValueError(f"Downloaded data contains invalid prices or volume for {ticker}.")
+        raise ValueError(
+            f"Downloaded data contains invalid prices or volume for {ticker}."
+        )
 
     data.index.name = "Date"
     return data.sort_index()
@@ -73,9 +91,13 @@ def save_raw_data(
     data.to_csv(file_path)
     return file_path
 
+
 if __name__ == "__main__":
     history = download_stock_data("RELIANCE.NS", start_date="2023-01-01")
     saved_path = save_raw_data(history, "RELIANCE.NS")
     print(f"Rows: {len(history)}")
-    print(f"Date range: {history.index.min().date()} to {history.index.max().date()}")
+    print(
+        f"Date range: {history.index.min().date()} "
+        f"to {history.index.max().date()}"
+    )
     print(f"Saved to: {saved_path}")

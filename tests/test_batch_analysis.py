@@ -48,12 +48,17 @@ class BatchAnalysisTests(unittest.TestCase):
                     Path(folder) / "processed",
                 )
 
-            self.assertEqual(set(summary["Ticker"]), {"RELIANCE.NS", "TCS.NS"})
+            self.assertEqual(
+                set(summary["Ticker"]),
+                {"RELIANCE.NS", "TCS.NS"},
+            )
             self.assertEqual(errors, {})
             self.assertTrue(summary_path.is_file())
             self.assertIn("previous_close_MAPE_percent", summary.columns)
             self.assertIn("moving_average_MAPE_percent", summary.columns)
-            self.assertTrue((summary["previous_close_MAPE_percent"] > 0).all())
+            self.assertTrue(
+                (summary["previous_close_MAPE_percent"] > 0).all()
+            )
 
     def test_one_stock_failure_does_not_stop_the_batch(self):
         risk = {
@@ -84,7 +89,10 @@ class BatchAnalysisTests(unittest.TestCase):
                     Path(folder) / "processed",
                 )
 
-            self.assertEqual(set(summary["Ticker"]), {"RELIANCE.NS", "INFY.NS"})
+            self.assertEqual(
+                set(summary["Ticker"]),
+                {"RELIANCE.NS", "INFY.NS"},
+            )
             self.assertIn("TCS.NS", errors)
             self.assertIn("sample analysis error", errors["TCS.NS"])
             self.assertTrue(summary_path.is_file())
@@ -101,6 +109,37 @@ class BatchAnalysisTests(unittest.TestCase):
                 )
 
             self.assertEqual(summary_path.read_text(), "keep this summary")
+
+    def test_baseline_uses_adjusted_close_when_available(self):
+        risk = {
+            "annualized_volatility": 0.2,
+            "maximum_drawdown": -0.1,
+        }
+
+        with tempfile.TemporaryDirectory() as folder:
+            input_path = self.create_input_csv(folder, "sample")
+            data = pd.read_csv(input_path)
+            data["Close"] = [100.0] * len(data)
+            data["Adj Close"] = range(100, 120)
+            data.to_csv(input_path, index=False)
+
+            summary_path = Path(folder) / "processed" / "summary.csv"
+
+            with patch(
+                "src.batch_analysis.analyze_stock_file",
+                return_value=(Path("processed.csv"), risk),
+            ):
+                summary, errors = analyze_watchlist_files(
+                    {"TEST.NS": input_path},
+                    summary_path,
+                    Path(folder) / "processed",
+                )
+
+            self.assertEqual(errors, {})
+            self.assertGreater(
+                summary.loc[0, "previous_close_MAPE_percent"],
+                0,
+            )
 
 
 if __name__ == "__main__":

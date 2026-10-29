@@ -57,6 +57,17 @@ class StockDataTests(unittest.TestCase):
 
             self.assertEqual(expected_path.read_text(), "keep this file")
 
+    @patch("src.data.stock_data.yf.download")
+    def test_preserves_adjusted_close_when_available(self, mock_download):
+        data = self.sample_data()
+        data["Adj Close"] = data["Close"] * 0.99
+        mock_download.return_value = data
+
+        result = download_stock_data("RELIANCE.NS", start_date="2025-01-01")
+
+        self.assertIn("Adj Close", result.columns)
+        self.assertTrue((result["Adj Close"] > 0).all())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,25 +9,38 @@ def add_technical_indicators(
     macd_fast: int = 12,
     macd_slow: int = 26,
     macd_signal: int = 9,
+    price_column: str | None = None,
 ) -> pd.DataFrame:
-    """Return a copy of OHLCV data with RSI and MACD columns added."""
+    """Return a copy of the data with RSI and MACD columns added.
+
+    By default, use Adj Close when available; otherwise, use Close.
+    """
     periods = (rsi_period, macd_fast, macd_slow, macd_signal)
     if any(period <= 0 for period in periods):
         raise ValueError("Indicator periods must be positive integers.")
     if macd_fast >= macd_slow:
         raise ValueError("macd_fast must be smaller than macd_slow.")
-    if "Close" not in data.columns:
-        raise ValueError("Input data must contain a 'Close' column.")
 
-    close = pd.to_numeric(data["Close"], errors="coerce")
+    # Choose the price column before checking that it exists.
+    if price_column is None:
+        price_column = "Adj Close" if "Adj Close" in data.columns else "Close"
+
+    if price_column not in data.columns:
+        raise ValueError(
+            f"Input data must contain a '{price_column}' column."
+        )
+
+    close = pd.to_numeric(data[price_column], errors="coerce")
     if close.isna().any():
-        raise ValueError("Close prices must be numeric and contain no missing values.")
+        raise ValueError(
+            f"{price_column} prices must be numeric and contain no missing values."
+        )
     if (close <= 0).any():
-        raise ValueError("Close prices must be greater than zero.")
+        raise ValueError(f"{price_column} prices must be greater than zero.")
 
     result = data.copy()
 
-    # RSI: compare smoothed average gains with smoothed average losses.
+    # RSI compares smoothed average gains with smoothed average losses.
     price_change = close.diff()
     gains = price_change.clip(lower=0)
     losses = -price_change.clip(upper=0)
@@ -46,11 +59,11 @@ def add_technical_indicators(
     relative_strength = average_gain / average_loss
     result[f"RSI_{rsi_period}"] = 100 - (100 / (1 + relative_strength))
 
-    # A flat price series has no gains or losses; assign neutral RSI.
+    # A flat price series has no gains or losses; use neutral RSI.
     flat_prices = (average_gain == 0) & (average_loss == 0)
     result.loc[flat_prices, f"RSI_{rsi_period}"] = 50
 
-    # MACD: difference between fast and slow exponential moving averages.
+    # MACD is the difference between fast and slow exponential averages.
     fast_average = close.ewm(
         span=macd_fast,
         min_periods=macd_fast,
