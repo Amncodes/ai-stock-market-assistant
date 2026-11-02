@@ -2,6 +2,8 @@
 
 import argparse
 import math
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -32,7 +34,7 @@ def train_and_evaluate_lstm(
     batch_size: int = 32,
     patience: int = 10,
     random_seed: int = 42,
-) -> tuple[pd.DataFrame, dict[str, float | int]]:
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Train on earlier data and compare forecasts on the final test dates."""
     if max_epochs <= 0 or batch_size <= 0 or patience <= 0:
         raise ValueError("max_epochs, batch_size, and patience must be positive.")
@@ -88,6 +90,21 @@ def train_and_evaluate_lstm(
     if not baseline_forecasts.index.equals(sequences.test_dates):
         raise RuntimeError("Baseline and LSTM test dates do not match.")
 
+    forecast_data = pd.DataFrame(
+        {
+            "Actual": actual_prices,
+            "Previous_Close": baseline_forecasts[
+                "Previous_Close_Forecast"
+            ].to_numpy(),
+            "Moving_Average": baseline_forecasts[
+                "Moving_Average_Forecast"
+            ].to_numpy(),
+            "LSTM": lstm_predictions,
+        },
+        index=sequences.test_dates,
+    )
+    forecast_data.index.name = "Date"
+
     rows = []
     for baseline_name, forecast_column in (
         ("previous_close", "Previous_Close_Forecast"),
@@ -114,6 +131,7 @@ def train_and_evaluate_lstm(
     training_info = {
         "epochs_trained": len(history.history["loss"]),
         "best_validation_loss": float(min(history.history["val_loss"])),
+        "forecast_data": forecast_data,
     }
     return results, training_info
 
@@ -145,6 +163,20 @@ def main() -> None:
     )
     print("\nForecast errors on the same final test dates:")
     print(results.to_string())
+
+    output_dir = Path("data/processed")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    forecast_path = (
+        output_dir / f"{Path(args.input_csv).stem}_lstm_forecasts.csv"
+    )
+
+    if forecast_path.exists():
+        raise FileExistsError(
+            f"Refusing to overwrite existing file: {forecast_path}"
+        )
+
+    training_info["forecast_data"].to_csv(forecast_path)
+    print(f"\nTest forecasts saved to: {forecast_path}")
 
 
 if __name__ == "__main__":
