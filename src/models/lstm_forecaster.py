@@ -1,4 +1,4 @@
-"""Build a small LSTM model for one-step-ahead price experiments."""
+"""Build an LSTM model for one-step-ahead price forecasts."""
 
 import math
 
@@ -7,6 +7,7 @@ def build_lstm_model(
     sequence_length: int = 30,
     units: int = 32,
     learning_rate: float = 0.001,
+    feature_count: int = 1,
 ):
     """Build and compile an LSTM that predicts one scaled price value."""
     if (
@@ -18,6 +19,13 @@ def build_lstm_model(
 
     if not isinstance(units, int) or isinstance(units, bool) or units <= 0:
         raise ValueError("units must be a positive integer.")
+
+    if (
+        not isinstance(feature_count, int)
+        or isinstance(feature_count, bool)
+        or feature_count <= 0
+    ):
+        raise ValueError("feature_count must be a positive integer.")
 
     if not math.isfinite(learning_rate) or learning_rate <= 0:
         raise ValueError("learning_rate must be a positive number.")
@@ -32,7 +40,7 @@ def build_lstm_model(
 
     model = tf.keras.Sequential(
         [
-            tf.keras.layers.Input(shape=(sequence_length, 1)),
+            tf.keras.layers.Input(shape=(sequence_length, feature_count)),
             tf.keras.layers.LSTM(units=units),
             tf.keras.layers.Dense(1),
         ]

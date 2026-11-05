@@ -60,5 +60,19 @@ class LSTMForecasterTests(unittest.TestCase):
         self.assertLessEqual(training_info["epochs_trained"], 2)
 
 
+    @unittest.skipIf(tf is None, "TensorFlow is installed only in the LSTM environment")
+    def test_model_accepts_multiple_features_per_day(self):
+        model = build_lstm_model(
+            sequence_length=30,
+            units=8,
+            feature_count=4,
+        )
+        sample_input = tf.zeros((2, 30, 4))
+
+        prediction = model(sample_input)
+
+        self.assertEqual(tuple(prediction.shape), (2, 1))
+
+
 if __name__ == "__main__":
     unittest.main()
