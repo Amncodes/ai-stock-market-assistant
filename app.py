@@ -115,7 +115,7 @@ def main() -> None:
     display_metrics = display_metrics.rename(
         columns={"MAE": "MAE (INR)", "RMSE": "RMSE (INR)"}
     )
-    st.dataframe(display_metrics, hide_index=True, use_container_width=True)
+    st.dataframe(display_metrics, hide_index=True, width="stretch")
 
     best_model = baseline_metrics["MAE"].idxmin()
     st.info(
@@ -186,7 +186,7 @@ def main() -> None:
                     st.dataframe(
                         pd.DataFrame(forecast_rows),
                         hide_index=True,
-                        use_container_width=True,
+                        width="stretch",
                     )
 
 
