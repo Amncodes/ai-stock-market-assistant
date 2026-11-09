@@ -1,60 +1,58 @@
 # AI-Driven Indian Stock Market Assistant
-An AI-powered research and decision-support application for analyzing Indian stock-market data, exploring technical indicators, evaluating portfolio risk, and experimenting with LSTM-based price forecasting.
 
-## Planned Features
+A research dashboard for exploring Indian stock-market history, technical indicators, risk measures, and experimental price forecasts. It supports multiple tickers and includes baseline and LSTM forecasting experiments.
 
-- Historical stock-market data collection
-- Data cleaning and exploratory analysis
-- Technical indicators such as RSI and MACD
-- LSTM-based forecasting experiments
-- Risk analysis and portfolio insights
-- Visualization of historical prices and model results
+Forecasts are experimental. They are not guaranteed returns or personalized investment advice.
 
-## Technology Stack
+## Dashboard
 
-- Python
-- NumPy and Pandas
-- Matplotlib and Seaborn
-- Scikit-learn
-- yfinance
-- TensorFlow/Keras (planned for deep-learning experiments)
+The Streamlit dashboard reads saved CSV files and displays:
 
-## Project Setup
+- Adjusted closing-price history
+- RSI and MACD indicators
+- Annualized volatility and maximum drawdown
+- Previous-close and moving-average forecast errors
+- Saved LSTM forecast comparisons, when available
 
-### 1. Clone the repository
+The dashboard does not automatically download fresh prices or train an LSTM when opened. Download stock data first.
 
-```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
-cd ai-stock-market-assistant
-```
+## Setup
 
-Replace `YOUR_GITHUB_REPOSITORY_URL` with your actual repository URL.
-
-### 2. Create and activate a virtual environment
-
-On macOS:
+From the project folder, create and activate the main environment, then install the project dependencies:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
 python -m pip install -r requirements.txt
 ```
 
-### 4. Run the application
+## Download stock data
+
+For example, to download three stocks starting from January 2023:
 
 ```bash
-python main.py
+python -m src.data.watchlist RELIANCE.NS TCS.NS INFY.NS --start-date 2023-01-01
 ```
 
-## Project Status
+The downloaded CSV files are saved in `data/raw/`.
 
-Initial environment and project structure setup. Data collection, technical indicators, forecasting, and risk-analysis modules are planned for subsequent development.
+## Run the dashboard
+
+With `.venv` activated, run:
+
+```bash
+streamlit run app.py
+```
+
+Open the local address printed in the terminal, usually `http://localhost:8501`.
+
+## Project folders
+
+- `src/` — data download, analysis, indicators, forecasting, and dashboard code
+- `tests/` — automated checks
+- `data/raw/` — downloaded stock data
+- `data/processed/` — analysis results and forecast files
 
 ## Disclaimer
 
-This project is intended for educational research and decision support. Forecasts are uncertain and should not be treated as guaranteed returns or personalized financial advice.
+This project is for educational research and decision support. Forecasts are uncertain and should not be treated as guaranteed returns or personalized investment advice.
