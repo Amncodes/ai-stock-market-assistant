@@ -66,13 +66,41 @@ def main() -> None:
     data = load_stock_data(str(stock_files[ticker]))
 
     price_column = "Adj Close" if "Adj Close" in data.columns else "Close"
+
+    # Calculate indicators from the full history before applying the date filter.
     featured_data = add_technical_indicators(
         data,
         price_column=price_column,
     )
 
+    earliest_date = featured_data.index.min().date()
+    latest_date = featured_data.index.max().date()
+
+    date_range = st.sidebar.date_input(
+        "Date range",
+        value=(earliest_date, latest_date),
+        min_value=earliest_date,
+        max_value=latest_date,
+    )
+
+    if not isinstance(date_range, (tuple, list)) or len(date_range) != 2:
+        st.info("Select both a start date and an end date.")
+        st.stop()
+
+    start_date, end_date = date_range
+    end_exclusive = pd.Timestamp(end_date) + pd.Timedelta(days=1)
+
+    featured_data = featured_data.loc[
+        (featured_data.index >= pd.Timestamp(start_date))
+        & (featured_data.index < end_exclusive)
+    ]
+
+    if len(featured_data) < 8:
+        st.warning("Select a range containing at least 8 trading days.")
+        st.stop()
+
     prices = featured_data[price_column]
-    baseline_forecasts, baseline_metrics = evaluate_baselines(prices)
+    _, baseline_metrics = evaluate_baselines(prices)
 
     latest = featured_data.iloc[-1]
     metric_columns = st.columns(4)
@@ -95,7 +123,7 @@ def main() -> None:
 
     st.caption(
         f"Data file: {stock_files[ticker].name} · "
-        f"{featured_data.index.min().date()} to "
+        f"Showing {featured_data.index.min().date()} to "
         f"{featured_data.index.max().date()}"
     )
 
@@ -119,8 +147,9 @@ def main() -> None:
 
     best_model = baseline_metrics["MAE"].idxmin()
     st.info(
-        f"On this historical test period, **{best_model}** had the lowest "
-        f"baseline MAE: ₹{baseline_metrics.loc[best_model, 'MAE']:.2f}."
+        f"On this selected historical period, **{best_model}** had the "
+        f"lowest baseline MAE: "
+        f"₹{baseline_metrics.loc[best_model, 'MAE']:.2f}."
     )
 
     ticker_file_prefix = ticker.replace(".", "_")
@@ -149,6 +178,11 @@ def main() -> None:
                 parse_dates=["Date"],
             ).sort_values("Date")
 
+            forecast_data = forecast_data.loc[
+                (forecast_data["Date"] >= pd.Timestamp(start_date))
+                & (forecast_data["Date"] < end_exclusive)
+            ]
+
             forecast_columns = [
                 column
                 for column in (
@@ -161,7 +195,14 @@ def main() -> None:
             ]
 
             if "Actual" not in forecast_columns:
-                st.warning("This forecast file does not contain an Actual column.")
+                st.warning(
+                    "This forecast file does not contain an Actual column."
+                )
+            elif forecast_data.empty:
+                st.info(
+                    "This forecast file has no results within the selected "
+                    "date range."
+                )
             else:
                 st.line_chart(
                     forecast_data.set_index("Date")[forecast_columns]
