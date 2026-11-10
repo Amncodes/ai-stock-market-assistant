@@ -151,6 +151,70 @@ def main() -> None:
         f"lowest baseline MAE: "
         f"₹{baseline_metrics.loc[best_model, 'MAE']:.2f}."
     )
+    st.subheader("Watchlist comparison")
+    compare_tickers = st.multiselect(
+        "Choose stocks to compare",
+        options=sorted(stock_files),
+        default=sorted(stock_files),
+    )
+
+    normalized_prices = {}
+    comparison_rows = []
+
+    for compare_ticker in compare_tickers:
+        compare_data = load_stock_data(str(stock_files[compare_ticker]))
+        compare_price_column = (
+            "Adj Close" if "Adj Close" in compare_data.columns else "Close"
+        )
+        compare_prices = pd.to_numeric(
+            compare_data[compare_price_column],
+            errors="coerce",
+        )
+
+        compare_prices = compare_prices.loc[
+            (compare_prices.index >= pd.Timestamp(start_date))
+            & (compare_prices.index < end_exclusive)
+        ].dropna()
+
+        if len(compare_prices) < 2:
+            continue
+
+        normalized_prices[compare_ticker] = (
+            compare_prices / compare_prices.iloc[0] * 100
+        )
+
+        comparison_rows.append(
+            {
+                "Ticker": compare_ticker,
+                "Period return (%)": (
+                    compare_prices.iloc[-1] / compare_prices.iloc[0] - 1
+                )
+                * 100,
+                "Annualized volatility": calculate_annualized_volatility(
+                    compare_prices
+                ),
+                "Maximum drawdown": calculate_max_drawdown(compare_prices),
+            }
+        )
+
+    if normalized_prices:
+        st.caption(
+            "Each line starts at 100 on its first available date in the "
+            "selected range."
+        )
+        st.line_chart(pd.DataFrame(normalized_prices))
+
+        comparison_table = pd.DataFrame(comparison_rows).sort_values(
+            "Period return (%)",
+            ascending=False,
+        )
+        st.dataframe(
+            comparison_table,
+            hide_index=True,
+            width="stretch",
+        )
+    else:
+        st.info("Choose at least one stock with data in the selected date range.")
 
     ticker_file_prefix = ticker.replace(".", "_")
     saved_forecasts = sorted(
